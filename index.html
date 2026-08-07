@@ -14,7 +14,8 @@
   .subtitle { text-align: center; color: #aaa; margin-bottom: 25px; font-size: 14px; }
   .card { background: #1a1a1a; border: 1px solid #333; border-radius: 15px; padding: 15px; margin-bottom: 15px; }
   .card-title { font-weight: 600; margin-bottom: 10px; text-align: center; }
-  .server-list { display: flex; flex-direction: column; gap: 10px; }
+  .server-btn-main { width: 100%; background: #7b2cff; border: none; color: #fff; padding: 14px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 16px; }
+  .server-popup { display: none; flex-direction: column; gap: 10px; margin-top: 10px; }
   .server-btn { background: #222; border: 1px solid #444; color: #fff; padding: 12px; border-radius: 10px; cursor: pointer; display: flex; justify-content: space-between; transition: 0.3s; }
   .server-btn:hover { border-color: #7b2cff; }
   .server-btn.active { background: #7b2cff; border-color: #7b2cff; color: #fff; }
@@ -29,6 +30,7 @@
   .btn:hover { box-shadow: 0 0 20px #7b2cff; }
   .btn:disabled { background: #444; color: #888; cursor: not-allowed; }
   .code-box { background: #000; border: 1px dashed #7b2cff; border-radius: 10px; padding: 15px; text-align: center; font-size: 20px; font-weight: 700; color: #00ff88; margin-top: 15px; min-height: 50px; display: flex; align-items: center; justify-content: center; word-break: break-all; }
+  .instruction { background: #1a0a2e; border-left: 3px solid #00ff88; padding: 10px; margin-top: 10px; font-size: 12px; color: #aaa; border-radius: 5px; }
   .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #555; }
   .btn-group { display: flex; gap: 10px; margin-top: 15px; }
   .btn-group.btn { background: #222; color: #7b2cff; border: 1px solid #7b2cff; font-size: 14px; padding: 12px; }
@@ -41,8 +43,10 @@
     <p class="subtitle">Generate Your Pairing Code</p>
 
     <div class="card">
-        <div class="card-title">📡 Select a Server (1-4)</div>
-        <div class="server-list" id="serverList"></div>
+        <div class="card-title">📡 Server Selection</div>
+        <button class="server-btn-main" onclick="toggleServerPopup()">🔽 Select Server</button>
+        <div class="server-popup" id="serverPopup"></div>
+        <p id="selectedServerText" style="text-align:center; margin-top:10px; color:#00ff88; font-size:14px;">No Server Selected</p>
     </div>
 
     <div class="card">
@@ -58,16 +62,24 @@
 
     <div class="code-box" id="codeBox">Your pairing code will appear here</div>
 
+    <!-- INSTRUCTION BOX -->
+    <div class="instruction" id="instructionBox" style="display:none;">
+        <b>How to use this code:</b><br>
+        1. Open WhatsApp<br>
+        2. Go to Settings > Linked Devices<br>
+        3. Tap "Link with phone number"<br>
+        4. Enter this code: <span id="showCode"></span>
+    </div>
+
     <div class="btn-group">
-        <button class="btn" onclick="window.open('https://wa.me/92XXXXXXXXXXX', '_blank')">👑 Owner</button>
-        <button class="btn" onclick="window.open('https://whatsapp.com/channel/XXXXXXXX', '_blank')">📢 Channel</button>
+        <button class="btn" onclick="window.open('https://wa.me/923436259742', '_blank')">👑 Owner</button>
+        <button class="btn" onclick="window.open('https://whatsapp.com/channel/0029Vb4Jh4wHgZWirfaYva0H', '_blank')">📢 Channel</button>
     </div>
 
     <div class="footer">© 2026 XENORIZE-MD | Powered By M RIZWAN TECHX</div>
 </div>
 
 <script>
-    // 1. YAHAN APNI 4 RAILWAY LINKS DAL DO - TUMHARA WALA
     const SERVERS = [
         "https://xenorizemdv2-production-3ee9.up.railway.app", // Server 1
         "https://server2.up.railway.app", // Server 2
@@ -75,17 +87,22 @@
         "https://server4.up.railway.app" // Server 4
     ];
 
-    let currentServer = 0;
+    let currentServer = null; // pehle koi select nahi
     let serverStatus = [false, false, false, false];
 
     window.onload = () => {
         renderServers();
         checkAllServers();
-        setInterval(checkAllServers, 10000); // 10 sec pe check
+        setInterval(checkAllServers, 10000);
+    }
+
+    function toggleServerPopup() {
+        const popup = document.getElementById('serverPopup');
+        popup.style.display = popup.style.display === 'flex'? 'none' : 'flex';
     }
 
     function renderServers() {
-        const list = document.getElementById('serverList');
+        const list = document.getElementById('serverPopup');
         list.innerHTML = '';
         SERVERS.forEach((url, i) => {
             const status = serverStatus[i]? 'online' : 'offline';
@@ -102,13 +119,8 @@
     async function checkAllServers() {
         for(let i = 0; i < SERVERS.length; i++) {
             try {
-                // no-cors hata diya. ab sahi se check hoga
                 const res = await fetch(`${SERVERS[i]}/api/stats`);
-                if(res.ok) {
-                    serverStatus[i] = true;
-                } else {
-                    serverStatus[i] = false;
-                }
+                serverStatus[i] = res.ok;
             } catch {
                 serverStatus[i] = false;
             }
@@ -117,8 +129,10 @@
     }
 
     function selectServer(index) {
-        if(!serverStatus[index]) return alert("Ye server offline hai");
+        if(!serverStatus[index]) return alert("❌ Ye server offline hai. Dusra select karo");
         currentServer = index;
+        document.getElementById('selectedServerText').innerText = `✅ Server ${index+1} Selected`;
+        document.getElementById('serverPopup').style.display = 'none'; // popup band
         renderServers();
     }
 
@@ -126,13 +140,16 @@
         const number = document.getElementById('number').value.trim();
         const btn = document.getElementById('generateBtn');
         const codeBox = document.getElementById('codeBox');
+        const instructionBox = document.getElementById('instructionBox');
 
-        if(!serverStatus[currentServer]) return alert("Ye server offline hai. Dusra select karo");
+        if(currentServer === null) return alert("Pehle server select karo 🔽");
+        if(!serverStatus[currentServer]) return alert("❌ Ye server offline hai. Dusra select karo");
         if(!number || number.length < 10) return alert("Sahi number dalo country code ke sath");
 
         btn.disabled = true;
         btn.innerText = "Generating...";
         codeBox.innerText = "Connecting to Server " + (currentServer+1) + "...";
+        instructionBox.style.display = 'none';
 
         try {
             const res = await fetch(`${SERVERS[currentServer]}/api/pair`, {
@@ -141,7 +158,14 @@
                 body: JSON.stringify({ number })
             });
             const data = await res.json();
-            codeBox.innerText = data.code || data.message || "Error: Code nahi mila";
+
+            if(data.code) {
+                codeBox.innerText = data.code;
+                document.getElementById('showCode').innerText = data.code;
+                instructionBox.style.display = 'block'; // instructions show
+            } else {
+                codeBox.innerText = data.message || "Error: Code nahi mila";
+            }
         } catch (e) {
             codeBox.innerText = "Server " + (currentServer+1) + " Error. Dusra try karo";
             serverStatus[currentServer] = false;
@@ -153,4 +177,4 @@
     }
 </script>
 </body>
-       </html>
+   </html>
