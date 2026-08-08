@@ -129,6 +129,20 @@
         renderServers();
     }
 
+    async function tryPair(serverIndex, number) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+
+        const res = await fetch(`${SERVERS[serverIndex]}/api/pair`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ number }),
+            signal: controller.signal
+        });
+        clearTimeout(timeout);
+        return await res.json();
+    }
+
     async function getPairing() {
         const number = document.getElementById('number').value.trim();
         const btn = document.getElementById('generateBtn');
@@ -144,32 +158,31 @@
         codeBox.innerText = "Connecting...";
         instructionBox.style.display = 'none';
 
-        try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 10000); // 10 sec timeout
+        // Pehle selected server, phir baqi 2 server try karega
+        const serversToTry = [currentServer, ...[0,1,2].filter(i => i !== currentServer)];
 
-            const res = await fetch(`${SERVERS[currentServer]}/api/pair`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ number }),
-                signal: controller.signal
-            });
-            clearTimeout(timeout);
-            
-            const data = await res.json();
+        for(let i = 0; i < serversToTry.length; i++) {
+            const serverIndex = serversToTry[i];
+            try {
+                codeBox.innerText = `Connecting to Server ${serverIndex+1}...`;
+                const data = await tryPair(serverIndex, number);
 
-            if(data.code) {
-                codeBox.innerText = data.code;
-                instructionBox.style.display = 'block';
-            } else {
-                codeBox.classList.add('error-text');
-                codeBox.innerText = data.message || `❌ Server ${currentServer+1} Error. Dusra try karein`;
+                if(data.code) {
+                    codeBox.innerText = data.code;
+                    document.getElementById('serverInfo').innerText = `Server ${serverIndex+1} Selected - ✅ Code Generated`;
+                    instructionBox.style.display = 'block';
+                    btn.disabled = false;
+                    btn.innerHTML = `<svg width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M11 2.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1z"/></svg> Generate Pair Code`;
+                    return; // Code mil gaya to ruk jao
+                }
+            } catch (e) {
+                console.log(`Server ${serverIndex+1} failed, trying next...`);
             }
-        } catch (e) {
-            codeBox.classList.add('error-text');
-            codeBox.innerText = `❌ Server ${currentServer+1} connect nahi ho raha. Dusra server try karein`;
         }
 
+        // Agar 3no fail ho gaye
+        codeBox.classList.add('error-text');
+        codeBox.innerText = `❌ All 3 Servers Offline hain. Kuch dair baad try karein`;
         btn.disabled = false;
         btn.innerHTML = `<svg width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M11 2.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1z"/></svg> Generate Pair Code`;
     }
